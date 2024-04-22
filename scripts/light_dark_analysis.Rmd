@@ -22,7 +22,7 @@ Each code chunk is basically the same except for different tissue types and diff
 ```{r 2018 embryo metabolites}
 
 #input data.frame (replace location with where the file is located)
-metabolite <- read.xlsx("data/EMBRYO_Tocos_Carots_Chlorophyll.xlsx",1)
+metabolite <- read.xlsx("../data/EMBRYO_Tocos_Carots_Chlorophyll.xlsx",1)
 #create new directory for plots and analysis outputs to live in
 setwd("2018_embryo")
 
@@ -151,7 +151,7 @@ names(residuals) <- colnames(metabolite)[4:20]
 row.names(residuals) <- paste(metabolite$Genotype, metabolite$Treatment, metabolite$rep,  sep ="_")
 
 #create BLUE values in separate files
-write.csv(blues, "embryo_2018_BLUEs.csv")
+write.csv(blues, "../data/embryo_2018_BLUEs.csv")
 
 
 wb <- createWorkbook()
@@ -175,14 +175,14 @@ writeData(wb, sheet = 6, blues, startRow = 1, startCol = 1, rowNames = T)
 
 
 # Save the workbook
-saveWorkbook(wb, "data/2018_embryo_metabolites.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "../data/2018_embryo_metabolites.xlsx", overwrite = TRUE)
 
 
 
 ```
 
 ```{r 2018 mature metabolites}
-metabolite <- read.csv("data/1.L&D_averaged_2018.csv")
+metabolite <- read.csv("../data/1.L&D_averaged_2018.csv")
 setwd("2018_mature")
 #selected only wanted phenotypes
 metabolite <- as.data.frame(metabolite[,-c(1,2,5,7,8,9,10,20,21)])
@@ -319,7 +319,7 @@ writeDataTable(wb, sheet = 6, blues, startRow = 1, startCol = 1, rowNames = T)
 # Rename the sheets
 
 # Save the workbook
-saveWorkbook(wb, "data/2018_mature_metabolites.xlsx", overwrite = TRUE, returnValue = T)
+saveWorkbook(wb, "../data/2018_mature_metabolites.xlsx", overwrite = TRUE, returnValue = T)
 
 
 
@@ -327,8 +327,7 @@ saveWorkbook(wb, "data/2018_mature_metabolites.xlsx", overwrite = TRUE, returnVa
 
 ```{r 2019 mature metabolites}
 
-metabolite <- read.csv("data/1.L&D_averaged_2019.csv")
-setwd("2019_mature")
+metabolite <- read.csv("../data/1.L&D_averaged_2019.csv")
 
 metabolite <- as.data.frame(metabolite[,-c(1,2,3,4,7,9,10,11,12,13,14,24,25,26)])
 metabolite <-metabolite[,!is.na(metabolite[1,])]
@@ -441,6 +440,9 @@ for(i in 4:12){
   
 }
 
+write.csv(blues, "../data/mature_2019_BLUEs.csv")
+
+
  row.names(genes_pval) <- colnames(metabolite)[4:12]
 row.names(tukey_pval) <- colnames(metabolite)[4:12]
 row.names(tukey_pval_sliced) <- colnames(metabolite)[4:12]
@@ -469,7 +471,7 @@ writeData(wb, sheet = 6, blues, startRow = 1, startCol = 1, rowNames = T)
 # Rename the sheets
 
 # Save the workbook
-saveWorkbook(wb, "data/2019_mature_metabolites.xlsx", overwrite = TRUE)
+saveWorkbook(wb, "../data/2019_mature_metabolites.xlsx", overwrite = TRUE)
 
 ```
 

@@ -3,6 +3,8 @@ library(tidyverse)
 library(readxl)
 
 #load in DESEQ output
+#have to run DESeq2.R to obtain .csv - can speak the visualization parts
+#go to line 296 and run from there
 deseq <- read.csv("data/all_DEG_deseq2_res_ALL.csv")
 #load in supplemental dataset
 genes <- read_xlsx('data/Supplemental Dataset S1.xlsx')

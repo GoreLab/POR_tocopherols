@@ -56,7 +56,7 @@ replace_with_greek <- function(input_string) {
 
 #read in dataset 
 #gotten from light_dark_analysis.Rmd
-blue = read.csv('data/embryo_2018_blues.csv', row.names = 1)
+blue = read.csv('../data/embryo_2018_blues.csv', row.names = 1)
 
 #formatting issues
 blue$BLUE=as.numeric(blue$BLUE)
@@ -90,7 +90,7 @@ tukey$Treatment=c('Dark','Control','Light')
 
 # assign letters from Tukey -----------------------------------------------
 #gotten after running light_dark_analysis.Rmd
-tukey_res=as.data.frame(readxl::read_xlsx('data/Supplemental Dataset S2.xlsx',sheet = 3))
+tukey_res=as.data.frame(readxl::read_xlsx('../data/Supplemental Dataset S2.xlsx',sheet = 3))
 row.names(tukey_res) <- tukey_res[,1]
 
 tukey_res <- t(tukey_res[,-1]) 
@@ -245,7 +245,7 @@ replace_with_greek <- function(input_string) {
 
 library(plyr)
 
-blue=read.csv('data/mature_2018_blues.csv', row.names = 1)
+blue=read.csv('../data/mature_2018_blues.csv', row.names = 1)
 blue$treatment <- tolower(blue$treatment)
 
 
@@ -275,7 +275,7 @@ tukey=tukey[order(tukey$Trait,tukey$Genotype),]
 tukey$Treatment=c('dark','control','light')
 
 # assign letters from Tukey -----------------------------------------------
-tukey_res=read.xlsx('data/metabolites_mature_2018.xlsx',3)
+tukey_res=read.xlsx('../data/metabolites_mature_2018.xlsx',3)
 row.names(tukey_res) <- tukey_res[,1]
 
 tukey_res <- t(tukey_res[,-1]) 
@@ -387,7 +387,7 @@ for ( t in traits){
 }
 
 ggarrange(p_list[[1]],p_list[[2]],p_list[[3]],p_list[[7]],p_list[[4]],p_list[[5]],p_list[[6]],p_list[[8]], nrow = 2, ncol = 4, common.legend = T, legend = "bottom")
-ggsave("2018_mature_metabolites_S7.png", width = 26, height = 12, units = "in", bg ="white")
+#ggsave("2018_mature_metabolites_S7.png", width = 26, height = 12, units = "in", bg ="white")
 
 
 #pdf("2018_mature/2018_mature.tiff")
@@ -401,7 +401,7 @@ ggsave("2018_mature_metabolites_S7.png", width = 26, height = 12, units = "in", 
 ```
 
 ```{r 2019 mature}
-blue=read.csv('data/mature_2019_blues.csv', row.names = 1)
+blue=read.csv('../data/mature_2019_blues.csv', row.names = 1)
 
 
 blue$BLUE=as.numeric(blue$BLUE)
@@ -432,7 +432,7 @@ tukey$Treatment=c('dark','control','light')
 # assign letters from Tukey -----------------------------------------------
 #dataset gotten after running light_dark_analysis.Rmd
 
-tukey_res=read.xlsx('data/metabolites_mature_2019.xlsx',3)
+tukey_res=read.xlsx('../data/metabolites_mature_2019.xlsx',3)
 row.names(tukey_res) <- tukey_res[,1]
 
 tukey_res <- t(tukey_res[,-1]) 
@@ -545,7 +545,7 @@ for ( t in traits){
 
 ggarrange(p_list[[1]],p_list[[2]],p_list[[3]],p_list[[7]],p_list[[4]],p_list[[5]],p_list[[6]],p_list[[8]], nrow = 2, ncol = 4, common.legend = T, legend = "bottom")
 
-ggsave("2019_mature_metabolites.png", width = 28, height = 12, units = "in", bg ="white")
+#ggsave("2019_mature_metabolites.png", width = 28, height = 12, units = "in", bg ="white")
 
 
 

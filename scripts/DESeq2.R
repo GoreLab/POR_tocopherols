@@ -316,23 +316,6 @@ write.csv(dds.res$`NC358_dark`, file = "NC358_dark_vs_control_deseq2_res_ALL.csv
 write.csv(dds.res$`NC358_dl`, file = "NC358_dark_vs_light_deseq2_res_ALL.csv", quote = F)
 
 
-#merge results
-files=list.files(pattern='_deseq2_res.csv')
-all_res=data.frame(matrix(nrow=0,ncol=8))
-for (i in files){
-  f=read.csv(i)
-  if(nrow(f)>0){
-    names(f)[1]='gene'
-    f$comparison=gsub('_deseq2_res.csv','',i)
-    names(all_res)=names(f)
-    all_res=rbind.data.frame(all_res,f)
-  }
-}
-#gene info
-gene_info=read.csv('Zea_mays.B73_RefGen_v4.59_anno.csv')
-all_res_merged=merge(gene_info,all_res,by.x='ID',by.y='gene',all.y=T)
-write.csv(all_res_merged,"DE_2018_rep_included.csv", quote = F,row.names = F)
-
 
 files=list.files(pattern='_deseq2_res_ALL.csv')
 files <- files[-1]
@@ -344,6 +327,7 @@ for (i in files){
   names(all_res)=names(f)
   all_res=rbind.data.frame(all_res,f)
 }
+#for figure3
 write.csv(all_res,"all_DEG_deseq2_res_ALL.csv", quote = F,row.names = F)
 
 
