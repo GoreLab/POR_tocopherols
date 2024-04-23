@@ -1,0 +1,222 @@
+---
+title: "Figure 5"
+author: "Sam Herr, Mike Gore"
+email: "skh77@cornell.edu"
+date: "2024-04-19"
+output: html_document
+---
+
+This R markdown file is for Figure 5
+
+The outline for the code chunks:
+1. Packages
+2. Figure 5a - includes analysis and visualization
+3. Figure 5b - include analysis and visualization
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(multcomp)
+library(gdata)
+library(ggplot2)
+library(gridExtra)
+library(data.table)
+library(multcomp)
+```
+
+
+Figure 5a code chunk:
+input: figure5a_data.csv
+data: 2019 Cornell Field experiment 
+Tissue type: Mature Kernels
+
+```{r Figure 5a}
+
+#Plot metabolites from 2019 field experiment
+metabolites <- read.csv("../data/figure5a_data.csv")
+
+#select total tocopherols, tocotrienols, and carotenoids
+metabolites <- metabolites[,c(1,2,3,10,11,13,14)]
+colnames(metabolites)[4:6] <- c( "Total Tocotrienols","Total Tocopherols", "Total Carotenoids")
+#prepare for plots
+m_plotting <- metabolites %>% pivot_longer(c(`Total Tocotrienols`, `Total Tocopherols`, `Total Carotenoids`) )
+colnames(m_plotting)[3] <- c("por")
+colnames(m_plotting)[4] <- c("Genotype")
+
+traits <- colnames(metabolites)[4:6]
+results_list <- list()
+
+#This for loop checks for outliers and performs Tukey's HSD to compare all mutants
+for ( i in 1: length(traits)){
+  x <-  unlist(as.vector( metabolites[,traits[3]]))
+  
+  df <- data.frame("TT" = x, "geno" = metabolites$geno)
+  
+  df <- df[,c(1,2)]
+  df$geno <- as.factor(df$geno)
+  x <- aov(TT~ geno, df)
+  critical_value <- qt(1 - alpha_adjusted/2, df = x$df.residual)
+  alpha_adjusted <- 0.05 / length(df[,1])
+  # Identify outliers
+  deleted_res <- rstudent(x)
+  outliers <- df[which(abs(deleted_res) > critical_value),]
+  print(outliers)
+  m <- TukeyHSD(x)
+  gl <- glht(x, mcp(geno = "Tukey"))
+  tuk.cld2 <- cld(gl)$mcletters$Letters
+  result_df <- data.frame(
+    Genotype = names(tuk.cld2),
+    name = rep(traits[i],5),
+    cld = tuk.cld2
+  )
+  
+  # Store the result data frame in the list
+  results_list[[i]] <- result_df
+  #diff <- m[, "p adj"]
+  
+}
+tukey <- data.table::rbindlist(results_list)
+
+#prepare manuscript
+max_values <- aggregate(value ~ name, data = m_plotting, FUN = max)
+tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
+
+#format for plot
+m_plotting$Genotype <- gsub("\\+---", "por1/+;por2/por2", m_plotting$Genotype)
+m_plotting$Genotype <- gsub("--\\+-", "por1/por1;por2/+", m_plotting$Genotype)
+m_plotting$Genotype <- gsub("----", "por1/por1;por2/por2", m_plotting$Genotype)
+m_plotting$Genotype <- gsub("\\+\\+--", "por2/por2", m_plotting$Genotype)
+m_plotting$Genotype <- gsub("--\\+\\+", "por1/por1", m_plotting$Genotype)
+m_plotting$Genotype <- gsub("\\+\\+\\+\\+", "WT",m_plotting$Genotype)
+
+tukey_df$Genotype <- gsub("\\+---", "por1/+;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("--\\+-", "por1/por1;por2/+", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("--\\+\\+", "por1/por1", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
+
+m_plotting$Genotype <- factor(m_plotting$Genotype, level=c('WT', 'por1/por1', 'por2/por2', 'por1/+;por2/por2','por1/por1;por2/+', 'por1/por1;por2/por2'))
+
+x <- ggplot(m_plotting, aes(x = Genotype, y=value, fill = Genotype)) + 
+              geom_boxplot() +
+  geom_text(data = tukey_df, aes(Genotype, y =value, label = cld),  vjust = -0.5) +
+     geom_point(aes(colour = Family)) +
+  facet_wrap(~name, scales = "free_y") +
+scale_fill_manual(values =c("#004D40","#004D40","#004D40", "#004D40",  "greenyellow"))+
+  scale_color_manual(values =c("red", "black"))+
+  theme_bw()+
+  labs('')+
+  ylab("Concentration")+
+  xlab("") +
+  theme(
+    plot.title.position = "plot",
+    panel.spacing = unit(4, "lines"),
+    strip.text = element_text(size = 20),
+    axis.text.x = element_text(size=15,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+    text = element_text(family = "Helvetica"),
+    axis.text.y = element_text(size=15,face="bold",colour = "black",angle = 0))
+
+
+```
+
+Figure 5b code chunk:
+input: figure5b_data.csv
+data: 2020 Cornell Greenhouse experiment 
+Tissue type: Mature Kernels
+
+```{r Figure 5b}
+### data from 2022 analysis for 20GH mature seeds
+re <-  read_xlsx("../data/figure5b.xlsx", sheet = 2)[,-c(2,7:9)]
+
+#format data
+re <- re[,-c(1:3,6:11,14)]
+colnames(re) <- c("geno", "Genotype", "Total Tocotrienol", "Total Tocopherol", "Total Carotenoids")
+traits <- colnames(re)[3:5]
+results_list <- list()
+
+#Perform Tukey's HSD and check for outliers
+#outputs dataframe that contains plotting information
+for ( i in 1: length(traits)){
+  x <-  unlist(as.vector( re[,traits[i]]))
+  
+  df <- data.frame("TT" = x, "geno" = re$Genotype)
+  
+  df <- df[,c(1,2)]
+  df$geno <- as.factor(df$geno)
+  # perform aov test
+  x <- aov(TT~ geno, df)
+  # Calculate critical value from t-distribution
+  critical_value <- qt(1 - alpha_adjusted/2, df = x$df.residual)
+  alpha_adjusted <- 0.05 / length(df[,1])
+  # Identify outliers
+  deleted_res <- rstudent(x)
+  outliers <- df[which(abs(deleted_res) > critical_value),]
+  print(outliers)
+  #perform Tukey HSD and get letters for plotting
+  m <- TukeyHSD(x)
+  gl <- glht(x, mcp(geno = "Tukey"))
+  tuk.cld2 <- cld(gl)$mcletters$Letters
+  result_df <- data.frame(
+    Genotype = names(tuk.cld2),
+    name = rep(traits[i],4),
+    cld = tuk.cld2
+  )
+  # Store the result data frame in the list
+  results_list[[i]] <- result_df
+  
+}
+
+#format for plot
+tukey <- data.table::rbindlist(results_list)
+re_m <- melt(re, id.vars = c("geno","Genotype"))
+colnames(re_m)[3:4] <- c("name","value")
+re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
+max_values <- aggregate(value ~ name, data = re_m, FUN = max)
+tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
+
+#switch notation in both annotation (tukey) and dataframe (re_m)
+tukey_df$Genotype <- gsub("\\+---", "por1/+;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
+re_m$Genotype <- gsub("\\+---", "por1/+;por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("----", "por1/por1;por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("\\+\\+--", "por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("\\+\\+\\+\\+", "WT",re_m$Genotype)
+
+#format for plot
+re_m$Genotype <- factor(re_m$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
+tukey_df$Genotype <- factor(tukey_df$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
+tukey_df$name <- factor(tukey_df$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
+re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
+
+ggplot(re_m, aes(x = factor(Genotype), y=value)) +
+  geom_boxplot(aes( fill = Genotype), show.legend = F) +
+  geom_point() +
+  geom_text(data = tukey_df, aes(x = Genotype, y =value, label = cld),  vjust = -0.5) +
+  scale_y_continuous(limits = c(0, NA)) +
+  
+  facet_wrap(~name, scales = "free_y") +
+  scale_fill_manual(values =c( "#004D40","#004D40" , "greenyellow","#FFC107"))+
+  
+  theme_bw()+
+  labs('')+
+  ylab("Concentration")+
+  xlab("") +
+  theme(
+    legend.text = element_text(size = 10),
+    legend.key.size = unit(2, 'cm'),
+    #plot.title = element_text(size=10,face = "bold",color="forestgreen"),
+    #axis.title=element_text(size=15,face="bold"),
+    axis.text.x = element_text(size=10,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+    axis.text.y = element_text(size=8,face="bold",colour = "black",angle = 0),
+    panel.spacing=unit(3,"lines"),
+    
+    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+
+
+
+```
+
+
+
