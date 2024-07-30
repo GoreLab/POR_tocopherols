@@ -12,6 +12,8 @@ The outline for the code chunks:
 1. Packages
 2. Figure 5a - includes analysis and visualization
 3. Figure 5b - include analysis and visualization
+4. Figure S12
+5. Figure S14
 
 ```{r setup, include=FALSE}
 library(tidyverse)
@@ -20,7 +22,9 @@ library(gdata)
 library(ggplot2)
 library(gridExtra)
 library(data.table)
-library(multcomp)
+library(agricolae)
+library(readxl)
+library(car)
 ```
 
 
@@ -30,41 +34,48 @@ data: 2019 Cornell Field experiment
 Tissue type: Mature Kernels
 
 ```{r Figure 5a}
-
+setwd("~/Documents/GoreLab/POR1_2/Light_dark_exp/scripts")
 #Plot metabolites from 2019 field experiment
 metabolites <- read.csv("../data/figure5a_data.csv")
 
 #select total tocopherols, tocotrienols, and carotenoids
 metabolites <- metabolites[,c(1,2,3,10,11,13,14)]
 colnames(metabolites)[4:6] <- c( "Total Tocotrienols","Total Tocopherols", "Total Carotenoids")
-#prepare for plots
+
+#prepare for data for plotting
 m_plotting <- metabolites %>% pivot_longer(c(`Total Tocotrienols`, `Total Tocopherols`, `Total Carotenoids`) )
 colnames(m_plotting)[3] <- c("por")
 colnames(m_plotting)[4] <- c("Genotype")
 
+#prepare data for statistical tests
 traits <- colnames(metabolites)[4:6]
 results_list <- list()
 
 #This for loop checks for outliers and performs Tukey's HSD to compare all mutants
 for ( i in 1: length(traits)){
-  x <-  unlist(as.vector( metabolites[,traits[3]]))
-  
-  df <- data.frame("TT" = x, "geno" = metabolites$geno)
-  
-  df <- df[,c(1,2)]
-  df$geno <- as.factor(df$geno)
-  x <- aov(TT~ geno, df)
-  critical_value <- qt(1 - alpha_adjusted/2, df = x$df.residual)
-  alpha_adjusted <- 0.05 / length(df[,1])
-  # Identify outliers
-  deleted_res <- rstudent(x)
-  outliers <- df[which(abs(deleted_res) > critical_value),]
-  print(outliers)
-  m <- TukeyHSD(x)
-  gl <- glht(x, mcp(geno = "Tukey"))
-  tuk.cld2 <- cld(gl)$mcletters$Letters
+  #data format
+  x <-  unlist(as.vector( metabolites[,traits[i]]))
+  df <- data.frame("TT" = x, "geno" = as.factor(metabolites$geno), "family"= as.factor(metabolites$Family), "combine" = as.factor(paste(metabolites$geno, "_",metabolites$Family)))
+  #df <- df[,c(1,2)]
+  #df$geno <- as.factor(df$geno)
+ # print(traits[i])
+  print(leveneTest(TT~ geno,df))
+  print(leveneTest(TT~ family,df))
+ # print(shapiro.test(residuals(lm(TT~geno*family,df))))
+  options(contrasts = c("contr.sum", "contr.poly"))
+  #statistical tests
+  model <- lm(TT~ family* geno, data = df)
+  x <- Anova(model, data = df, type = "III")
+  summary(x)
+  #plot(x)
+  #print(summary(x))
+  #no outliers found
+  print(outlierTest(x, cutoff=0.05, order=TRUE))
+  comparison <- HSD.test(model, "geno", group=TRUE, unbalanced = T)
+  #print(summary(gl))
+  tuk.cld2 <- comparison$groups[,2]
   result_df <- data.frame(
-    Genotype = names(tuk.cld2),
+    Genotype = rownames(comparison$groups),
     name = rep(traits[i],5),
     cld = tuk.cld2
   )
@@ -74,9 +85,12 @@ for ( i in 1: length(traits)){
   #diff <- m[, "p adj"]
   
 }
-tukey <- data.table::rbindlist(results_list)
 
-#prepare manuscript
+
+
+#prepare data for figures for manuscript
+tukey <- data.table::rbindlist(results_list)
+#For setting maximum y-value in visualiztion
 max_values <- aggregate(value ~ name, data = m_plotting, FUN = max)
 tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
 
@@ -94,27 +108,49 @@ tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
 tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
 tukey_df$Genotype <- gsub("--\\+\\+", "por1/por1", tukey_df$Genotype)
 tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
+tukey_df$name <- factor(tukey_df$name, level= c("Total Carotenoids" ,"Total Tocotrienols","Total Tocopherols"))
 
 m_plotting$Genotype <- factor(m_plotting$Genotype, level=c('WT', 'por1/por1', 'por2/por2', 'por1/+;por2/por2','por1/por1;por2/+', 'por1/por1;por2/por2'))
-
-x <- ggplot(m_plotting, aes(x = Genotype, y=value, fill = Genotype)) + 
+m_plotting$name <- factor(m_plotting$name, level=c('Total Carotenoids', 'Total Tocotrienols', 'Total Tocopherols'))
+ggplot(m_plotting, aes(x = Genotype, y=value, fill = Genotype)) + 
               geom_boxplot() +
   geom_text(data = tukey_df, aes(Genotype, y =value, label = cld),  vjust = -0.5) +
      geom_point(aes(colour = Family)) +
   facet_wrap(~name, scales = "free_y") +
-scale_fill_manual(values =c("#004D40","#004D40","#004D40", "#004D40",  "greenyellow"))+
+scale_fill_manual(values =c("#004D40","#004D40","#004D40",  "greenyellow", "#004D40"))+
   scale_color_manual(values =c("red", "black"))+
   theme_bw()+
   labs('')+
+    scale_y_continuous(limits = c(0, NA)) +
+
   ylab("Concentration")+
   xlab("") +
   theme(
+    legend.text = element_text(size = 10),
     plot.title.position = "plot",
-    panel.spacing = unit(4, "lines"),
+    panel.spacing = unit(3, "lines"),
     strip.text = element_text(size = 20),
     axis.text.x = element_text(size=15,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
     text = element_text(family = "Helvetica"),
-    axis.text.y = element_text(size=15,face="bold",colour = "black",angle = 0))
+    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
+    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+
+
+ggsave("Figure_5a_interaction.png",width = 10, height =8)
+
+
+
+calculate_percent_increase <- function(original_value, new_value) {
+  # Calculate the difference
+  difference <- new_value - original_value
+  
+  # Calculate percent increase
+  percent_increase <- (difference / original_value) * 100
+  
+  # Return the percent increase
+  return(mean(percent_increase))
+}
+
 
 
 ```
@@ -126,11 +162,11 @@ Tissue type: Mature Kernels
 
 ```{r Figure 5b}
 ### data from 2022 analysis for 20GH mature seeds
-re <-  read_xlsx("../data/figure5b.xlsx", sheet = 2)[,-c(2,7:9)]
+re <-  read_xlsx("../data/figure5b_data.xlsx", sheet = 2)[,-c(2,7:9)]
 
 #format data
 re <- re[,-c(1:3,6:11,14)]
-colnames(re) <- c("geno", "Genotype", "Total Tocotrienol", "Total Tocopherol", "Total Carotenoids")
+colnames(re) <- c("geno", "Genotype", "Total Tocotrienols", "Total Tocopherols", "Total Carotenoids")
 traits <- colnames(re)[3:5]
 results_list <- list()
 
@@ -138,39 +174,44 @@ results_list <- list()
 #outputs dataframe that contains plotting information
 for ( i in 1: length(traits)){
   x <-  unlist(as.vector( re[,traits[i]]))
-  
+  print(traits[i])
   df <- data.frame("TT" = x, "geno" = re$Genotype)
   
   df <- df[,c(1,2)]
   df$geno <- as.factor(df$geno)
-  # perform aov test
+  print(leveneTest(TT~ geno,df))
+  print(shapiro.test(residuals(lm(TT~geno,df))))
+
+  
+  model <- lm(TT~geno,df)
+  # perform aov test,type 1 as we only have one term
   x <- aov(TT~ geno, df)
+  print(outlierTest(x, cutoff=0.05, order=TRUE))
+  
   # Calculate critical value from t-distribution
-  critical_value <- qt(1 - alpha_adjusted/2, df = x$df.residual)
-  alpha_adjusted <- 0.05 / length(df[,1])
-  # Identify outliers
-  deleted_res <- rstudent(x)
-  outliers <- df[which(abs(deleted_res) > critical_value),]
-  print(outliers)
+
   #perform Tukey HSD and get letters for plotting
   m <- TukeyHSD(x)
-  gl <- glht(x, mcp(geno = "Tukey"))
-  tuk.cld2 <- cld(gl)$mcletters$Letters
+  comparison <- HSD.test(model, "geno", group=TRUE, unbalanced = T)
+  #print(summary(gl))
+  tuk.cld2 <- comparison$groups[,2]
   result_df <- data.frame(
-    Genotype = names(tuk.cld2),
+    Genotype = rownames(comparison$groups),
     name = rep(traits[i],4),
     cld = tuk.cld2
   )
+  
   # Store the result data frame in the list
   results_list[[i]] <- result_df
   
 }
-
+write.csv(data.table::rbindlist(tukey_list), "Tukey_results_2020_GH_mature.csv")
+write.csv(data.table::rbindlist(anova_list), "ANOVA_results_2020_GH_mature.csv")
 #format for plot
 tukey <- data.table::rbindlist(results_list)
-re_m <- melt(re, id.vars = c("geno","Genotype"))
+re_m <- melt(as.data.table(re), id.vars = c("geno","Genotype"))
 colnames(re_m)[3:4] <- c("name","value")
-re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
+re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienols","Total Tocopherols"))
 max_values <- aggregate(value ~ name, data = re_m, FUN = max)
 tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
 
@@ -187,8 +228,8 @@ re_m$Genotype <- gsub("\\+\\+\\+\\+", "WT",re_m$Genotype)
 #format for plot
 re_m$Genotype <- factor(re_m$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
 tukey_df$Genotype <- factor(tukey_df$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
-tukey_df$name <- factor(tukey_df$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
-re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienol","Total Tocopherol"))
+tukey_df$name <- factor(tukey_df$name, level= c("Total Carotenoids" ,"Total Tocotrienols","Total Tocopherols"))
+re_m$name <- factor(re_m$name, level= c("Total Carotenoids" ,"Total Tocotrienols","Total Tocopherols"))
 
 ggplot(re_m, aes(x = factor(Genotype), y=value)) +
   geom_boxplot(aes( fill = Genotype), show.legend = F) +
@@ -205,18 +246,335 @@ ggplot(re_m, aes(x = factor(Genotype), y=value)) +
   xlab("") +
   theme(
     legend.text = element_text(size = 10),
-    legend.key.size = unit(2, 'cm'),
-    #plot.title = element_text(size=10,face = "bold",color="forestgreen"),
-    #axis.title=element_text(size=15,face="bold"),
-    axis.text.x = element_text(size=10,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
-    axis.text.y = element_text(size=8,face="bold",colour = "black",angle = 0),
-    panel.spacing=unit(3,"lines"),
-    
-    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+    plot.title.position = "plot",
+    panel.spacing = unit(3, "lines"),
+    strip.text = element_text(size = 20),
+    axis.text.x = element_text(size=18,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+    text = element_text(family = "Helvetica"),
+    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
+    strip.text.x = element_text(size = 15,face="bold",color="black", angle =360,family='sans'))
 
 
+ggsave("Figure_5b.png",width = 10, height =10)
+
+re_m <- re_m[,-1]
+x <- re_m %>% group_by(Genotype, name) %>% dplyr::summarise(mean_values = mean(value))
 
 ```
 
+Supplemental figures:
+
+Figure S12 code chunk:
+input: figure5a_data.csv
+data: 2019 Cornell Field experiment 
+Tissue type: Mature Kernels
+```{r Figure S12}
+
+#formatting function for plotting names
+replace_with_greek <- function(input_string) {
+  # Replace 'a' with 'α' (alpha)
+  input_string <- gsub("^a.", "α-", input_string)
+  
+  # Replace 'd' with 'δ' (delta)
+  input_string <- gsub("^d.", "δ-", input_string)
+  
+  # Replace 'g' with 'γ' (gamma)
+  input_string <- gsub("^g.", "γ-", input_string)
+  input_string <- gsub("^B.", "β-", input_string)
+  
+  
+  input_string <- gsub("l[.]TT3", "l Tocochromanol", input_string)
+  input_string <- gsub("Total[.]Tocotrienols", "Total Tocotrienols", input_string)
+  
+  input_string <- gsub("T3$", "Tocotrienol", input_string)
+  
+  input_string <- gsub("Total[.]Tocopherols", "Total Tocopherols", input_string)
+  input_string <- gsub("-T$", "-Tocopherol", input_string)
+  
+  # Replace "T" with "Tocopherol"
+    return(input_string)
+
+} 
+  
+setwd("~/Documents/GoreLab/POR1_2/Light_dark_exp/scripts")
+#Plot metabolites from 2019 field experiment
+metabolites <- read.csv("../data/figure5a_data.csv")
+
+#select total tocopherols, tocotrienols, and carotenoids
+
+#prepare for data for plotting
+
+#prepare data for statistical tests
+traits <- colnames(metabolites)[4:12]
+results_list <- list()
+anova_list <- list()
+tukey_list <- list()
+#This for loop checks for outliers and performs Tukey's HSD to compare all mutants
+for ( i in 1: length(traits)){
+  #data format
+  x <-  unlist(as.vector( metabolites[,traits[i]]))
+  df <- data.frame("TT" = as.numeric(x), "Genotype" = as.factor(metabolites$geno), "Family"= as.factor(metabolites$Family), "combine" = as.factor(paste(metabolites$geno, "_",metabolites$Family)))
+
+  #print(leveneTest(TT~ Genotype,df))
+  #print(leveneTest(TT~ family,df))
+  #print(shapiro.test(residuals(lm(TT~Genotype*family,df))))
+  
+  #statistical tests
+  options(contrasts = c("contr.sum", "contr.poly"))
+  model <- lm(TT~ Family* Genotype, data = df)
+  x <- Anova(model, data = df, type = "III")
+  print(outlierTest(x, cutoff=0.05, order=TRUE))
+
+  x$trait <- rep(traits[i],5)
+  x$comparisons <- row.names(x)
+
+  anova_list[[i]] <- x
+  comparison <- HSD.test(model, "Genotype", group=F, unbalanced = T)
+  tukey_df <- comparison$comparison
+  tukey_df$trait <- rep(traits[i],10)
+  tukey_df$comparison <- row.names(tukey_df)
+  tukey_list[[i]] <- tukey_df
+  #print(summary(gl))
+   comparison <- HSD.test(model, "Genotype", group=T, unbalanced = T)
+  tuk.cld2 <- comparison$groups[,2]
+  result_df <- data.frame(
+    Genotype = rownames(comparison$groups),
+    name = rep(traits[i],5),
+    cld = tuk.cld2
+  )
+  
+  # Store the result data frame in the list
+  results_list[[i]] <- result_df
+
+}
+
+#For Supplemental Tables
+write.csv(data.table::rbindlist(tukey_list), "Tukey_results_2019_mature.csv")
+write.csv(data.table::rbindlist(anova_list), "ANOVA_results_2019_mature.csv")
 
 
+#Creating data frames used in visualizations
+tukey <- data.table::rbindlist(results_list)
+metabolites <- metabolites %>% select(!c(Barcode,Genotype))
+m_plotting <- metabolites %>% pivot_longer(!c(Family, geno))
+#set max value to set y limitations
+max_values <- aggregate(value ~ name, data = m_plotting, FUN = max)
+tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
+
+
+#format for plot
+m_plotting$Genotype <- m_plotting$geno
+m_plotting$Genotype <- gsub("\\+---", "por1/+;por2/por2", m_plotting$Genotype)
+m_plotting$Genotype  <- gsub("--\\+-", "por1/por1;por2/+", m_plotting$Genotype)
+m_plotting$Genotype  <- gsub("----", "por1/por1;por2/por2", m_plotting$Genotype)
+m_plotting$Genotype  <- gsub("\\+\\+--", "por2/por2", m_plotting$Genotype)
+m_plotting$Genotype  <- gsub("--\\+\\+", "por1/por1", m_plotting$Genotype)
+m_plotting$Genotype  <- gsub("\\+\\+\\+\\+", "WT",m_plotting$Genotype)
+
+tukey_df$Genotype <- gsub("\\+---", "por1/+;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("--\\+-", "por1/por1;por2/+", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("--\\+\\+", "por1/por1", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
+
+tukey_df$name <- replace_with_greek(tukey_df$name)
+m_plotting$name <- replace_with_greek(m_plotting$name)
+
+
+
+m_plotting$Genotype <- factor(m_plotting$Genotype, level=c('WT', 'por1/por1', 'por2/por2', 'por1/+;por2/por2','por1/por1;por2/+', 'por1/por1;por2/por2'))
+
+tukey_df$Genotype <- factor(tukey_df$Genotype, level=c('WT', 'por1/por1', 'por2/por2', 'por1/+;por2/por2','por1/por1;por2/+', 'por1/por1;por2/por2'))
+
+tukey_df <- tukey_df %>% filter(name != "Total.Tocochromanols")
+m_plotting <- m_plotting %>% filter(!(name %in% c("Total.Tocochromanols", "Total.Carots")))
+
+m_plotting$name <- factor(m_plotting$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",      "Total Tocopherols"))
+tukey_df$name <- factor(tukey_df$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",      "Total Tocopherols"))
+
+
+ggplot(m_plotting, aes(x = Genotype , y=value, fill = Genotype )) + 
+              geom_boxplot() +
+  geom_text(data = tukey_df, aes(Genotype, y =value, label = cld),  vjust = -0.5) +
+     geom_point(aes(colour = Family)) +
+  facet_wrap(~name, scales = "free_y", ncol =4) +
+scale_fill_manual(values =c("#004D40","#004D40","#004D40", "#004D40",  "greenyellow"))+
+  scale_color_manual(values =c("red", "black"))+
+  theme_bw()+
+  labs('')+
+    scale_y_continuous(limits = c(0, NA)) +
+
+  ylab("Concentration")+
+  xlab("") +
+  theme(
+    legend.text = element_text(size = 10),
+    plot.title.position = "plot",
+    panel.spacing = unit(3, "lines"),
+    strip.text = element_text(size = 20),
+    axis.text.x = element_text(size=15,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+    text = element_text(family = "Helvetica"),
+    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
+    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+
+
+ggsave("Figure_5a_supplement.png",width = 24, height =12)
+
+```
+
+Figure S14 code chunk:
+input: figure5b_data.csv
+data: 2020 Cornell Greenhouse experiment 
+Tissue type: Mature Kernels
+
+```{r Figure S14}
+
+#formatting function for plotting names
+replace_with_greek <- function(input_string) {
+  # Replace 'a' with 'α' (alpha)
+  input_string <- gsub("^a.", "α-", input_string)
+  
+  # Replace 'd' with 'δ' (delta)
+  input_string <- gsub("^d.", "δ-", input_string)
+  
+  # Replace 'g' with 'γ' (gamma)
+  input_string <- gsub("^g.", "γ-", input_string)
+  input_string <- gsub("^B.", "β-", input_string)
+  
+  
+  input_string <- gsub("l[.]TT3", "l Tocochromanol", input_string)
+  input_string <- gsub("Total[.]Tocotrienol", "Total Tocotrienols", input_string)
+  
+  input_string <- gsub("T3$", "Tocotrienol", input_string)
+  
+  input_string <- gsub("Total[.]T", "Total Tocopherols", input_string)
+  input_string <- gsub("-T$", "-Tocopherol", input_string)
+  
+  # Replace "T" with "Tocopherol"
+    return(input_string)
+
+} 
+  
+### data from 2022 analysis for 20GH mature seeds
+re <-  read_xlsx("../data/figure5b_data.xlsx", sheet = 2)[,-c(2,7:9)]
+
+#format data
+re <- re[,-c(1:3)]
+colnames(re)[1:2] <- c("geno", "Genotype")
+traits <- colnames(re)[3:12]
+results_list <- list()
+anova_list <- list()
+tukey_list <- list()
+#Perform Tukey's HSD and check for outliers
+#outputs dataframe that contains plotting information
+for ( i in 1: length(traits)){
+  x <-  unlist(as.vector( re[,traits[i]]))
+  print(traits[i])
+  df <- data.frame("TT" = x, "geno" = re$geno)
+  
+  df <- df[,c(1,2)]
+  df$geno <- as.factor(df$geno)
+  print(leveneTest(TT~ geno,df))
+  print(shapiro.test(residuals(lm(TT~geno,df))))
+
+  options(contrasts = c("contr.sum", "contr.poly"))
+  model <- lm(TT~geno,df)
+  # perform aov test
+  x <- car::Anova(model, type = "III")
+
+  #print(outlierTest(x, cutoff=0.05, order=TRUE))
+  x$trait <- rep(traits[i],3)
+  x$comparisons <- row.names(x)
+
+  anova_list[[i]] <- x
+  # Calculate critical value from t-distribution
+
+  #perform Tukey HSD and get values for table
+  comparison <- HSD.test(model, trt = "geno", group=F, unbalanced = T)
+  tukey_df <- comparison$comparison
+  tukey_df$trait <- rep(traits[i],6)
+  tukey_df$comparison <- row.names(tukey_df)
+  tukey_list[[i]] <- tukey_df
+  #perform Tukey HSD and get letters for F
+  comparison <- HSD.test(model, trt = "geno", group=T, unbalanced = T)
+  tuk.cld2 <- comparison$groups[,2]
+  result_df <- data.frame(
+    Genotype = rownames(comparison$groups),
+    name = rep(traits[i],4),
+    cld = tuk.cld2
+  )
+  
+  # Store the result data frame in the list
+  results_list[[i]] <- result_df
+  
+}
+
+#tables for dataframes
+write.csv(data.table::rbindlist(tukey_list), "Tukey_results_2020_GH_mature.csv")
+write.csv(data.table::rbindlist(anova_list), "ANOVA_results_2020_GH_mature.csv")
+
+tukey <- data.table::rbindlist(results_list)
+
+#format for plot
+tukey <- data.table::rbindlist(results_list)
+
+
+re_m <- melt(as.data.table(re), id.vars = c("geno","Genotype"))
+colnames(re_m)[3:4] <- c("name","value")
+re_m$name <- replace_with_greek(re_m$name)
+max_values <- aggregate(value ~ name, data = re_m, FUN = max)
+tukey$name <- replace_with_greek(tukey$name)
+tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
+
+#switch notation in both annotation (tukey) and dataframe (re_m)
+tukey_df$Genotype <- gsub("\\+---", "por1/+;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
+re_m$Genotype <- gsub("\\+---", "por1/+;por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("----", "por1/por1;por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("\\+\\+--", "por2/por2", re_m$Genotype)
+re_m$Genotype <- gsub("\\+\\+\\+\\+", "WT",re_m$Genotype)
+
+#format for plot
+re_m$Genotype <- factor(re_m$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
+tukey_df$Genotype <- factor(tukey_df$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
+
+re_m <- re_m %>% filter()
+
+tukey_df <- tukey_df %>% filter(!(name %in% c("Total Tocochromanol", "Total.Carots")))
+re_m <- re_m %>% filter(!(name %in% c("Total Tocochromanol", "Total.Carots")))
+
+
+
+re_m$name <- factor(re_m$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",   "Total Tocopherols"))
+tukey_df$name <- factor(tukey_df$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",     "Total Tocopherols"))
+
+
+ggplot(re_m, aes(x = factor(Genotype), y=value)) +
+  geom_boxplot(aes( fill = Genotype), show.legend = F) +
+  geom_point() +
+  geom_text(data = tukey_df, aes(x = Genotype, y =value, label = cld),  vjust = -0.5) +
+  scale_y_continuous(limits = c(0, NA)) +
+  
+  facet_wrap(~name, scales = "free_y", ncol =4) +
+  scale_fill_manual(values =c( "#004D40","#004D40" , "greenyellow","#FFC107"))+
+  
+  theme_bw()+
+  labs('')+
+  ylab("Concentration")+
+  xlab("") +
+  theme(
+    legend.text = element_text(size = 10),
+    plot.title.position = "plot",
+    panel.spacing = unit(3, "lines"),
+    strip.text = element_text(size = 20),
+    axis.text.x = element_text(size=20,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+    text = element_text(family = "Helvetica"),
+    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
+    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+
+
+ggsave("Figure_5b_supplemental.png",width = 24, height =12)
+
+```

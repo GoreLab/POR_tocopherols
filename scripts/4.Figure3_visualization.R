@@ -3,12 +3,11 @@ library(tidyverse)
 library(readxl)
 
 #load in DESEQ output
-#have to run DESeq2.R to obtain .csv - can speak the visualization parts
+#have to run DESeq2.R to obtain .csv 
 #go to run script to line 261
 deseq <- read.csv("../data/all_DEG_deseq2_res_ALL.csv")
-#load in supplemental dataset
-#which is the apriori genes
-genes <- read_xlsx('../data/Supplemental Dataset S1.xlsx')
+#load in the candidate genes
+genes <- read_xlsx('../data/Table_S8.xlsx', skip =1)
 
 
 split_parts <- sapply(strsplit(deseq$comparison, "_deseq2"), `[`, 1)
@@ -32,7 +31,7 @@ df  <- merge(genes,deseq,by.x="RefGen_v4.Gene.ID" ,by.y="gene")
 
 #get means of log fold change per gene per treatment comparison
 df_treatment_means <- df %>%
-  group_by(treatment_compare, RefGen_v4.Gene.ID, A.Priori.Candidate.Gene.Pathway) %>%
+  group_by(treatment_compare, RefGen_v4.Gene.ID, `A Priori Candidate Gene Pathway`) %>%
   summarise(mean(log2FoldChange))
 
 #Plotting format

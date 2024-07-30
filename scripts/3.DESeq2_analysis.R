@@ -21,10 +21,6 @@ colnames(cts_num)=colnames(cts)
 dim(cts_num)
 # Processing the input data for DESeq2: Removing Uninformative Rows -------------------------------
 
-#My perl script had already removed the summary lines at the bottom of the HTSeq count output files when I created the merged matrix 
-
-#How many rows are there currently?
-nrow(cts_num)
 
 #Remove rows where there all samples don't have any counts.
 #We're using the 'apply' function, which applys the user-specified function to either rows or columns
