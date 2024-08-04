@@ -12,8 +12,8 @@ The outline for the code chunks:
 1. Packages
 2. Figure 5a - includes analysis and visualization
 3. Figure 5b - include analysis and visualization
-4. Figure S12
-5. Figure S14
+4. Figure S13
+5. Figure S15
 
 ```{r setup, include=FALSE}
 library(tidyverse)
@@ -112,6 +112,7 @@ tukey_df$name <- factor(tukey_df$name, level= c("Total Carotenoids" ,"Total Toco
 
 m_plotting$Genotype <- factor(m_plotting$Genotype, level=c('WT', 'por1/por1', 'por2/por2', 'por1/+;por2/por2','por1/por1;por2/+', 'por1/por1;por2/por2'))
 m_plotting$name <- factor(m_plotting$name, level=c('Total Carotenoids', 'Total Tocotrienols', 'Total Tocopherols'))
+
 ggplot(m_plotting, aes(x = Genotype, y=value, fill = Genotype)) + 
               geom_boxplot() +
   geom_text(data = tukey_df, aes(Genotype, y =value, label = cld),  vjust = -0.5) +
@@ -323,7 +324,7 @@ for ( i in 1: length(traits)){
   options(contrasts = c("contr.sum", "contr.poly"))
   model <- lm(TT~ Family* Genotype, data = df)
   x <- Anova(model, data = df, type = "III")
-  print(outlierTest(x, cutoff=0.05, order=TRUE))
+  print(outlierTest(model, cutoff=0.05, order=TRUE))
 
   x$trait <- rep(traits[i],5)
   x$comparisons <- row.names(x)
@@ -395,39 +396,40 @@ tukey_df$name <- factor(tukey_df$name, levels = c( "α-Tocotrienol" ,"δ-Tocotri
 
 
 ggplot(m_plotting, aes(x = Genotype , y=value, fill = Genotype )) + 
-              geom_boxplot() +
-  geom_text(data = tukey_df, aes(Genotype, y =value, label = cld),  vjust = -0.5) +
-     geom_point(aes(colour = Family)) +
+              geom_boxplot(show.legend = F) +
+  geom_point(aes(color =Family ), show.legend = F)+
+  geom_text(data = tukey_df, aes(x = Genotype, y =1.1*value, label = cld),position=position_dodge(width=0.9), color = "black", family= "sans", size = 5)  +
   facet_wrap(~name, scales = "free_y", ncol =4) +
 scale_fill_manual(values =c("#004D40","#004D40","#004D40", "#004D40",  "greenyellow"))+
   scale_color_manual(values =c("red", "black"))+
-  theme_bw()+
-  labs('')+
     scale_y_continuous(limits = c(0, NA)) +
 
+  theme_bw()+
+  labs('')+
   ylab("Concentration")+
   xlab("") +
   theme(
-    legend.text = element_text(size = 10),
-    plot.title.position = "plot",
-    panel.spacing = unit(3, "lines"),
-    strip.text = element_text(size = 20),
-    axis.text.x = element_text(size=15,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
-    text = element_text(family = "Helvetica"),
-    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
-    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+   legend.text = element_text(size = 10),
+          plot.title.position = "plot",
+        axis.title=element_text(size=30),
+        panel.spacing = unit(4, "lines"),
+        strip.text = element_text(size = 20),
+               axis.text.x = element_text(size=20,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+        text = element_text(family = "Helvetica"),
+        axis.text.y = element_text(size=15,face="bold",colour = "black",angle = 0),
+   legend.key.size = unit(8, 'cm'))  
 
 
-ggsave("Figure_5a_supplement.png",width = 24, height =12)
+ggsave("Figure_S13.png",width = 24, height =12)
 
 ```
 
-Figure S14 code chunk:
+Figure S15 code chunk:
 input: figure5b_data.csv
 data: 2020 Cornell Greenhouse experiment 
 Tissue type: Mature Kernels
 
-```{r Figure S14}
+```{r Figure S15}
 
 #formatting function for plotting names
 replace_with_greek <- function(input_string) {
@@ -443,9 +445,10 @@ replace_with_greek <- function(input_string) {
   
   
   input_string <- gsub("l[.]TT3", "l Tocochromanol", input_string)
+  input_string <- gsub("T3$", "Tocotrienol", input_string)
+
   input_string <- gsub("Total[.]Tocotrienol", "Total Tocotrienols", input_string)
   
-  input_string <- gsub("T3$", "Tocotrienol", input_string)
   
   input_string <- gsub("Total[.]T", "Total Tocopherols", input_string)
   input_string <- gsub("-T$", "-Tocopherol", input_string)
@@ -456,21 +459,21 @@ replace_with_greek <- function(input_string) {
 } 
   
 ### data from 2022 analysis for 20GH mature seeds
-re <-  read_xlsx("../data/figure5b_data.xlsx", sheet = 2)[,-c(2,7:9)]
+metabolites <-  read_xlsx("../data/figure5b_data.xlsx", sheet = 2)[,-c(2,7:9)]
 
 #format data
-re <- re[,-c(1:3)]
-colnames(re)[1:2] <- c("geno", "Genotype")
-traits <- colnames(re)[3:12]
+metabolites <- metabolites[,-c(1:3)]
+colnames(metabolites)[1:2] <- c("geno", "Genotype")
+traits <- colnames(metabolites)[3:12]
 results_list <- list()
 anova_list <- list()
 tukey_list <- list()
 #Perform Tukey's HSD and check for outliers
 #outputs dataframe that contains plotting information
 for ( i in 1: length(traits)){
-  x <-  unlist(as.vector( re[,traits[i]]))
+  x <-  unlist(as.vector( metabolites[,traits[i]]))
   print(traits[i])
-  df <- data.frame("TT" = x, "geno" = re$geno)
+  df <- data.frame("TT" = x, "geno" = metabolites$geno)
   
   df <- df[,c(1,2)]
   df$geno <- as.factor(df$geno)
@@ -513,48 +516,47 @@ for ( i in 1: length(traits)){
 write.csv(data.table::rbindlist(tukey_list), "Tukey_results_2020_GH_mature.csv")
 write.csv(data.table::rbindlist(anova_list), "ANOVA_results_2020_GH_mature.csv")
 
-tukey <- data.table::rbindlist(results_list)
 
 #format for plot
 tukey <- data.table::rbindlist(results_list)
 
 
-re_m <- melt(as.data.table(re), id.vars = c("geno","Genotype"))
-colnames(re_m)[3:4] <- c("name","value")
-re_m$name <- replace_with_greek(re_m$name)
-max_values <- aggregate(value ~ name, data = re_m, FUN = max)
+metabolites_corrected <- melt(as.data.table(metabolites), id.vars = c("geno","Genotype"))
+colnames(metabolites_corrected)[3:4] <- c("name","value")
+metabolites_corrected$name <- replace_with_greek(metabolites_corrected$name)
+max_values <- aggregate(value ~ name, data = metabolites_corrected, FUN = max)
 tukey$name <- replace_with_greek(tukey$name)
 tukey_df <- merge(tukey, max_values, by = "name", suffixes = c("", "_max"))
 
-#switch notation in both annotation (tukey) and dataframe (re_m)
-tukey_df$Genotype <- gsub("\\+---", "por1/+;por2/por2", tukey_df$Genotype)
-tukey_df$Genotype <- gsub("----", "por1/por1;por2/por2", tukey_df$Genotype)
-tukey_df$Genotype <- gsub("\\+\\+--", "por2/por2", tukey_df$Genotype)
-tukey_df$Genotype <- gsub("\\+\\+\\+\\+", "WT",tukey_df$Genotype)
-re_m$Genotype <- gsub("\\+---", "por1/+;por2/por2", re_m$Genotype)
-re_m$Genotype <- gsub("----", "por1/por1;por2/por2", re_m$Genotype)
-re_m$Genotype <- gsub("\\+\\+--", "por2/por2", re_m$Genotype)
-re_m$Genotype <- gsub("\\+\\+\\+\\+", "WT",re_m$Genotype)
+#switch notation in both annotation (tukey) and dataframe (metabolites_corrected)
+tukey_df$Genotype <- gsub("POR1por1por2por2", "por1/+;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("por1por1por2por2", "por1/por1;por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("POR1POR1por2por2", "por2/por2", tukey_df$Genotype)
+tukey_df$Genotype <- gsub("POR1POR1POR2POR2", "WT",tukey_df$Genotype)
+metabolites_corrected$Genotype <- gsub("\\+---", "por1/+;por2/por2", metabolites_corrected$Genotype)
+metabolites_corrected$Genotype <- gsub("----", "por1/por1;por2/por2", metabolites_corrected$Genotype)
+metabolites_corrected$Genotype <- gsub("\\+\\+--", "por2/por2", metabolites_corrected$Genotype)
+metabolites_corrected$Genotype <- gsub("\\+\\+\\+\\+", "WT",metabolites_corrected$Genotype)
 
 #format for plot
-re_m$Genotype <- factor(re_m$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
+metabolites_corrected$Genotype <- factor(metabolites_corrected$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
 tukey_df$Genotype <- factor(tukey_df$Genotype, level=c('WT',  'por2/por2','por1/+;por2/por2',  'por1/por1;por2/por2'  ))
 
-re_m <- re_m %>% filter()
+metabolites_corrected <- metabolites_corrected %>% filter()
 
 tukey_df <- tukey_df %>% filter(!(name %in% c("Total Tocochromanol", "Total.Carots")))
-re_m <- re_m %>% filter(!(name %in% c("Total Tocochromanol", "Total.Carots")))
+metabolites_corrected <- metabolites_corrected %>% filter(!(name %in% c("Total Tocochromanol", "Total.Carots")))
+tukey_df$value <- 1.1 *tukey_df$value
 
 
-
-re_m$name <- factor(re_m$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",   "Total Tocopherols"))
+metabolites_corrected$name <- factor(metabolites_corrected$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",   "Total Tocopherols"))
 tukey_df$name <- factor(tukey_df$name, levels = c( "α-Tocotrienol" ,"δ-Tocotrienol","γ-Tocotrienol", "Total Tocotrienols", "α-Tocopherol" , "δ-Tocopherol" ,"γ-Tocopherol",     "Total Tocopherols"))
 
 
-ggplot(re_m, aes(x = factor(Genotype), y=value)) +
+ggplot(metabolites_corrected, aes(x = factor(Genotype), y=value)) +
   geom_boxplot(aes( fill = Genotype), show.legend = F) +
   geom_point() +
-  geom_text(data = tukey_df, aes(x = Genotype, y =value, label = cld),  vjust = -0.5) +
+  geom_text(data = tukey_df, aes(x = Genotype, y =value, label = cld),position=position_dodge(width=0.9), color = a"black", family= "sans", size = 5) +
   scale_y_continuous(limits = c(0, NA)) +
   
   facet_wrap(~name, scales = "free_y", ncol =4) +
@@ -565,16 +567,17 @@ ggplot(re_m, aes(x = factor(Genotype), y=value)) +
   ylab("Concentration")+
   xlab("") +
   theme(
-    legend.text = element_text(size = 10),
-    plot.title.position = "plot",
-    panel.spacing = unit(3, "lines"),
-    strip.text = element_text(size = 20),
-    axis.text.x = element_text(size=20,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
-    text = element_text(family = "Helvetica"),
-    axis.text.y = element_text(size=10,face="bold",colour = "black",angle = 0),
-    strip.text.x = element_text(size = 12,face="bold",color="black", angle =360,family='sans'))
+   legend.text = element_text(size = 10),
+          plot.title.position = "plot",
+        axis.title=element_text(size=30),
+        panel.spacing = unit(4, "lines"),
+        strip.text = element_text(size = 20),
+               axis.text.x = element_text(size=20,face = "italic",colour = "black",angle = 45,hjust = 1, vjust = 1),
+        text = element_text(family = "Helvetica"),
+        axis.text.y = element_text(size=15,face="bold",colour = "black",angle = 0),
+   legend.key.size = unit(8, 'cm'))   
 
 
-ggsave("Figure_5b_supplemental.png",width = 24, height =12)
+ggsave("Figure_S15.png",width = 24, height =12)
 
 ```

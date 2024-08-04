@@ -548,8 +548,8 @@ annotations$name <- factor(annotations$name, levels = c( "α-Tocotrienol" ,"δ-T
 
 #plot
 ggplot(metabolites_df,aes(x = Genotype, y=value, group=Genotype ,width=.8)) +
-  geom_boxplot(aes(fill=Genotype)) + 
-  geom_point(aes(colour = Family)) +
+  geom_boxplot(aes(fill=Genotype), show.legend = F) + 
+  geom_point(aes(colour = Family), show.legend = F) +
   #facet_wrap based on traits
   facet_wrap(~name, scales = "free_y", ncol = 4,
                 strip.position = "top") +
@@ -575,7 +575,7 @@ ggplot(metabolites_df,aes(x = Genotype, y=value, group=Genotype ,width=.8)) +
   theme(legend.key.size = unit(8, 'cm')) 
 
 
-ggsave("embryo_20GH_supplemental.png", width = 24, height =12, device='png', dpi=700)
+ggsave("Figure S18.png", width = 24, height =12, device='png', dpi=700)
 
 
 
