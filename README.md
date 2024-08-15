@@ -5,7 +5,7 @@ This repository and website documents all analyses, summary, tables and figures 
 DIRECTORIES:  
 
 data: contains data relevant to analysis and visualizations  
-"figure2_Tukey.xlsx": Tukey's HSD results from SAS analysis for  from 24 Days after pollination embryos from the 2018 physiological experiment
+"figure2_Tukey.xlsx": Tukey's HSD results from SAS analysis for  from 24 Days after pollination embryos from the 2018 physiological experiment  
 "figure2_BLUE.xlsx": Best Linear Unbiased Estimates (BLUEs) results from SAS analysis for from 24 Days after pollination embryos from the 2018 physiological experiment  
 "figure5a_data.csv": metabolomics data harvested from mature kernels selected from CRISPR/Cas9 mutants in the 2019 field experiment    
 "figure5b_data.xlsx": metabolomics data harvested from mature kernels selected from CRISPR/Cas9 mutants in the 2020 Greenhouse experiment     
